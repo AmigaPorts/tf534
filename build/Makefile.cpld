@@ -27,10 +27,15 @@ ifdef NOWAIT
 PARAMS:=-generics NOWAIT=1
 endif
 
-BOARD:=tf530
 PROJECT=$(SUBPROJ)_top
 # Part number
 PART=XC9572XL-10-VQ64
+
+ifeq ($(BOARD),tf534)
+ifeq ($(SUBPROJ),ram)
+PART=XC95144XL-10-TQ100
+endif
+endif
 
 # Constraints file
 UCF=../ucf/$(BOARD)_$(SUBPROJ)_control_$(REVISION).ucf
@@ -45,7 +50,7 @@ PB=$(WD)/$(PN)
 OUTPUT=$(PN).svf
 
 XSTFLAGS=-opt_mode $(OPTMODE) -opt_level 2 -verilog2001 YES -keep_hierarchy No -netlist_hierarchy As_Optimized -rtlview Yes -hierarchy_separator / -bus_delimiter <> -case Maintain -fsm_extract YES -fsm_encoding Auto -safe_implementation No -mux_extract Yes -resource_sharing YES -iobuf YES -pld_mp YES -pld_xp YES -pld_ce YES -wysiwyg NO -equivalent_register_removal YES
-CPLDFITFLAGS=-slew fast -power std -terminate keeper -unused float -optimize $(OPTIMIZE) -init low -pterms 50
+CPLDFITFLAGS=-slew slow -power std -terminate float -unused float -optimize $(OPTIMIZE) -init low -pterms 50
 
 .PHONY: all clean
 

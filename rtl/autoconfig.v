@@ -29,7 +29,7 @@ module autoconfig(
 
            input [31:0] A,
 
-           input [7:4]  D,
+           input [7:0]  D,
            output [7:4] DOUT,
 
            output 	     ACCESS,
@@ -100,7 +100,7 @@ always @(negedge DS20 or negedge RESET) begin
             end
             6'h01: begin
                 if (config_out == CONFIGURING_SPI) data_out[7:4] <= 4'h1;
-                if (config_out == CONFIGURING_RAM) data_out[7:4] <= 4'h6;
+                if (config_out == CONFIGURING_RAM) data_out[7:4] <= 4'h7;
             end
             6'h02: begin
                 if (config_out == CONFIGURING_SPI) data_out[7:4] <= 4'h7;
@@ -125,7 +125,7 @@ end
 // decode the base addresses
 // these are hardcoded to the address they always get assigned to.
 assign DECODE[SPI_CARD] = ({A[23:16]} != {8'he9}) | ~config_out[SPI_CARD] | shutup[SPI_CARD];
-assign DECODE[RAM_CARD] = ({A[31:24]} != {8'h40}) | ~config_out[RAM_CARD] | shutup[RAM_CARD];
+assign DECODE[RAM_CARD] = (({A[23:21]} != {3'b001}) & ({A[23:21]} != {3'b010})) | ~config_out[RAM_CARD] | shutup[RAM_CARD];
 
 assign ACCESS = Z2_ACCESS;
 assign DOUT = data_out;

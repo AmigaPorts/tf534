@@ -25,10 +25,14 @@ module ram_top(
            input CLKCPU,
            input	RESET,
 
-           input	[23:0] A,
-           inout	[7:0] D,
+           input [31:0]	 A,
+           inout [15:0]	 D,
+           inout     	 DD, 
            input   [1:0] SIZ,
 
+	   output [3:2]  RAMA,
+	     
+	   input         FPUOP, 
            input   IDEINT,
            output   IDEWAIT,
            output  INT2,
@@ -45,22 +49,32 @@ module ram_top(
            // 32 bit internal cycle.
            // i.e. assert OVR
            output  INTCYCLE,
+	   input		 DTACK,
 
            // ram chip control
            output reg [3:0] RAMCS,
            output reg  RAMOE,
 
            // SPI Port
-			  output				EXTINT,
+	   input   	 EXTINT,
+           output	 HOLD,
+	   output	 WRITEPROT,
+           
+           
            output          SPI_CLK,
            output [1:0]    SPI_CS,
-           input	          SPI_MISO,
-           output           SPI_MOSI
+           output          SPI_WCS,
+           input	   SPI_MISO,
+           output          SPI_MOSI
 
        );
 
+
+reg AS20_D;
 reg STERM_D = 1'b1;
 reg STERM_D2 = 1'b1;
+reg STERM_D3 = 1'b1;
+reg STERM_D4 = 1'b1;
 wire ROM_ACCESS = (A[23:19] != {4'hF, 1'b1}) | AS20;
 // produce an internal data strobe
 wire GAYLE_INT2;
@@ -73,13 +87,13 @@ gayle GAYLE(
 
           .CLKCPU ( CLKCPU        ),
           .RESET  ( RESET         ),
-          .AS20   ( AS20          ),
+          .AS20   ( AS20_D          ),
           .DS20   ( DS20          ),
           .RW     ( RW20          ),
           .A      ( A             ),
           .IDE_INT( IDEINT        ),
           .INT2   ( GAYLE_INT2    ),
-          .D7	  ( D[7]          ),
+          .D7	  ( D[15]          ),
           .DOUT7  ( gayle_dout    ),
           .ACCESS ( gayle_decode  )
 
@@ -101,13 +115,13 @@ autoconfig AUTOCONFIG(
 
                .RESET  ( RESET         ),
 
-               .AS20   ( AS20          ),
+               .AS20   ( AS20_D          ),
                .DS20   ( DS20          ),
                .RW20   ( RW20          ),
 
                .A      ( A             ),
 
-               .D	    ( D[7:4]        ),
+               .D	    ( D[15:8]  ),
                .DOUT	( zii_dout[7:4]),
 
 	       .ACCESS ( zii_decode	),
@@ -116,22 +130,24 @@ autoconfig AUTOCONFIG(
 
 wire RAMOE_INT;
 wire [3:0] RAMCS_INT;
+reg echo_d3 = 1'b1;
+reg DTACK_D = 1'b1;
 
 fastram RAMCONTROL (
 
             .RESET  ( RESET         ),
 
-            .A      ( A             ),
+            .A      ( A[1:0]        ),
             .SIZ    ( SIZ           ),
 
             .ACCESS ( ram_access | DS20 ),
 
-            .AS20   ( AS20    	    ),
+            .AS20   ( AS20_D    | ~DTACK_D      ),
             .DS20   ( DS20          ),
             .RW20   ( RW20          ),
 
             // ram chip control
-            .RAMCS  ( RAMCS_INT	    ),
+            .RAMCS  ( RAMCS_INT	   ),
             .RAMOE  ( RAMOE_INT     )
 
         );
@@ -153,17 +169,17 @@ zxmmc SPIPORT (
    .ENABLE ( ~(spi_access | DS20) ),
    .RS     ( A[2]       ),
    .nWR    ( RW20       ),
-   .DI     ( D          ),
+   .DI     ( D[15:8]    ),
    .DO     ( spi_dout   ),
    .SD_CS0 ( SPI_CS[0]  ),
    .SD_CS1 ( SPI_CS[1]  ),
+   .SD_WCS ( SPI_WCS    ),
    .SD_CLK ( SPI_CLK    ),
    .SD_MOSI( SPI_MOSI   ),
    .SD_MISO( SPI_MISO   )
 );
 
 reg CIIN_D;
-reg AS20_D;
 reg CBACK_D;
 reg INTCYCLE_INT = 1'b1;
 reg intcycle_dout = 1'b1;
@@ -188,9 +204,13 @@ always @(AS20) begin
   end 
   
 end 
+
 always @(negedge CLKCPU) begin
 
-    WAITSTATE <= AS20 | DS20 | RAMOE_INT;
+    WAITSTATE <= AS20_D  | DS20 | RAMOE_INT;
+
+    echo_d3 <= RW20 & ~FPUOP & RAMOE;
+    DTACK_D <= DTACK;
 
 end
 
@@ -210,7 +230,7 @@ always @(negedge CLKCPU, posedge AS20) begin
 
 end
 
-// a general access to something this module controls is happening.
+
 wire db_access = spi_access & gayle_access & zii_access;
 
 always @(posedge CLKCPU or posedge AS20) begin
@@ -220,21 +240,28 @@ always @(posedge CLKCPU or posedge AS20) begin
         AS20_D <= 1'b1;
 
         STERM_D <=  1'b1;
+        STERM_D2 <=  1'b1;
+        STERM_D3 <=  1'b1;
+        STERM_D4 <=  1'b1;
+		  
         CIIN_D <=   1'b0;
         CBACK_D <= 1'b1;
         intcycle_dout <= 1'b1;
 
-        STERM_D2 <= 1'b1;
 
     end else begin
 
         AS20_D <= AS20;
 
-        STERM_D <=  ~STERM_D | WAITSTATE;
-        STERM_D2 <= STERM_D | ~STERM_D2;
-        CIIN_D <=  ~(ROM_ACCESS & RAMOE_INT);
+        CIIN_D <=  1'b0; //~(ROM_ACCESS & RAMOE_INT);
         CBACK_D <= 1'b1; //CBREQ | AS20 | &AC;
         intcycle_dout <= db_access | ~RW20;
+		  
+		  STERM_D <=  ~STERM_D | WAITSTATE;
+        STERM_D2 <= STERM_D | ~STERM_D2;
+        STERM_D3 <= STERM_D2 | ~STERM_D3;
+        STERM_D4 <= STERM_D3 | ~STERM_D4;
+
 
     end
 
@@ -246,18 +273,29 @@ assign INTCYCLE = ram_access & db_access;
 assign IDEWAIT = RAMOE ? 1'bz : 1'b0;
 
 // disable all burst control.
-assign STERM = STERM_D;
+assign STERM = STERM_D3;
 assign CBACK = CBACK_D ;
 assign CIIN = CIIN_D;
 
 assign INT2 = GAYLE_INT2 ? 1'bz : 1'b0;
 
-wire [7:0] data_out;
-assign data_out[7:4] = spi_access ? (zii_access ? {gayle_dout,3'b000} : zii_dout ) : spi_dout[7:4];
-assign data_out[3:0] = spi_access ? 4'd0 : spi_dout[3:0];
+wire [15:0] data_out;
+assign data_out[15:12] = spi_access ? (zii_access ? {gayle_dout,3'b000} : zii_dout ) : spi_dout[7:4];
+assign data_out[11:8] = spi_access ? 4'd0 : spi_dout[3:0];
+assign data_out[7:4] =  4'h0;
+assign data_out[3] = DD;
+assign data_out[2:0] = 3'b000;
 
-assign D[7:0] = ~intcycle_dout ? data_out : 8'bzzzzzzzz;
-assign EXTINT = CLKCPU;
+assign D[15:4] = ~intcycle_dout ? data_out[15:4] : 12'bzzzz_zzzzzzzz;
+assign D[2:0] =  ~intcycle_dout ? data_out[2:0] :  3'bzzz;
+assign D[3] =  echo_d3 ? DD : 1'bz;  
+
+assign RAMA[3:2] = {A[3:2]};   
+
+assign DD = RW20 ? 1'bz : D[3];
+
+assign WRITEPROT = 1'b1;
+assign HOLD = 1'b1;
 
 endmodule
 

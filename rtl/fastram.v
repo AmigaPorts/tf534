@@ -25,7 +25,7 @@ module fastram(
            input 	     RESET,
            input         ACCESS,
 
-           input [23:0]  A,
+           input [1:0]  A,
            input [1:0]   SIZ,
 
            input 	      AS20,
