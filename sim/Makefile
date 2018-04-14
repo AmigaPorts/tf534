@@ -1,7 +1,7 @@
 TOP_LEVEL=tf530_sim
 .PHONY: $(TOP_LEVEL)
 RTLFOLDER=../rtl/
-SOURCES=$(TOP_LEVEL).v $(RTLFOLDER)/bus_top.v $(RTLFOLDER)/m6800.v $(RTLFOLDER)/gayle.v $(RTLFOLDER)/ram_top.v $(RTLFOLDER)/fastram.v $(RTLFOLDER)/spiport.v $(RTLFOLDER)/ata.v
+SOURCES=$(TOP_LEVEL).v $(RTLFOLDER)/bus_top.v $(RTLFOLDER)/m6800.v $(RTLFOLDER)/gayle.v $(RTLFOLDER)/ram_top.v $(RTLFOLDER)/fastram.v $(RTLFOLDER)/zxmmc.v $(RTLFOLDER)/ata.v $(RTLFOLDER)/autoconfig.v
 $(TOP_LEVEL): prj
 	fuse -lib uni9000_ver -lib aim_ver -lib cpld_ver -lib xilinxcorelib_v -prj $(TOP_LEVEL)_beh.prj -top $(TOP_LEVEL) -o $(TOP_LEVEL) work.glbl
 run: $(TOP_LEVEL) cmd
