@@ -200,16 +200,16 @@ always @(posedge CLK7M or posedge AS20) begin
         if (RW20 == 1'b1) begin
 
             // reading when reading the signals are asserted in 7Mhz S2
-	    BUSEN_D <= DS20 | FPUOP | ~GAYLE_IDE | ~INTCYCLE;
-            UDS_INT <= DS20 | A[0] | FPUOP | ~GAYLE_IDE | ~INTCYCLE;
-            LDS_INT <= DS20 | ({A[0], SIZ[1:0]} == 3'b001) | FPUOP | ~GAYLE_IDE | ~INTCYCLE;
+	    BUSEN_D <= DS20 | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
+            UDS_INT <= DS20 | A[0] | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
+            LDS_INT <= DS20 | ({A[0], SIZ[1:0]} == 3'b001) | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
 
         end else begin
 
             // when writing the the signals are asserted in 7Mhz S4
-	    BUSEN_D <= DS20 | FPUOP | ~GAYLE_IDE | ~INTCYCLE;
-            UDS_INT <= DS20 | AS_INT | A[0] | FPUOP | ~GAYLE_IDE | ~INTCYCLE;
-            LDS_INT <= DS20 | AS_INT  | ({A[0], SIZ[1:0]} == 3'b001) | FPUOP | ~GAYLE_IDE | ~INTCYCLE;
+	    BUSEN_D <= DS20 | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
+            UDS_INT <= DS20 | AS_INT | A[0] | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
+            LDS_INT <= DS20 | AS_INT  | ({A[0], SIZ[1:0]} == 3'b001) | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
 				
         end
 
