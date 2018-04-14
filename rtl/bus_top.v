@@ -154,6 +154,7 @@ assign SPARE = FPUOP | ~GAYLE_IDE;
 
 wire FASTCYCLE_INT = AS20DLY2 | ~IDEWAIT | INTCYCLE;
 
+reg S0MASK = 1'b1;
 reg S4MASK = 1'b1;
 reg S5MASK1 = 1'b1;
 reg S5MASK2 = 1'b1;
@@ -173,8 +174,14 @@ always @(negedge CLKCPU or posedge AS20) begin
 
 end
 
-always @(posedge CLK7M or posedge AS20) begin
+always @(posedge CLK7M) begin
+   
+    S0MASK <= AS_INT;
 
+end
+   
+always @(posedge CLK7M or posedge AS20) begin
+   
     if (AS20 == 1'b1) begin
 
         AS_INT <= 1'b1;
@@ -188,7 +195,7 @@ always @(posedge CLK7M or posedge AS20) begin
 
         // assert these lines in S2
         // the 68030 assert them one half clock early.
-        AS_INT <= AS20 | FPUOP | ~GAYLE_IDE | ~INTCYCLE;
+        AS_INT <= AS20 | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
 
         if (RW20 == 1'b1) begin
 

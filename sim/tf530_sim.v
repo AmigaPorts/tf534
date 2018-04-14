@@ -36,7 +36,7 @@ wire CLK;
 	reg BGACKn;
 
 	// Outputs
-	wire [23:0] ADR;
+	wire [31:0] ADR;
 	wire [2:0] FC;
 	wire ASn;
 	wire RWn;
@@ -49,7 +49,10 @@ wire CLK;
 	wire BGn;
 
 	// Bidirs
-	wire [15:0] DATA;
+	wire [15:0] DATA_LATCH;
+   	wire [15:0] DATA_CPU;
+   	wire [15:0] DATA_OUT;
+   
 	wire RESETn;
 	wire  HALTn;
 	wire  AS20;
@@ -60,8 +63,8 @@ wire [1:0] SIZ = (LDSn | UDSn) ? 'b01 : 'b10;
 	WF68K00IP_TOP uut (
 		.CLK(CLK), 
 		.RESET_COREn(RESET_COREn), 
-		.ADR(ADR), 
-		.DATA(DATA), 
+		.ADR(ADR[23:0]), 
+		.DATA(DATA_CPU), 
 		.BERRn(BERRn), 
 		.RESETn(RESETn), 
 		.HALTn(HALTn), 
@@ -87,6 +90,7 @@ wire [1:0] SIZ = (LDSn | UDSn) ? 'b01 : 'b10;
 		.CLK7M(CLK7M),
 		.INTCYCLE(INTCYCLE),
 		.IDEWAIT(IDEWAIT),
+		.SPARE  (FPUOP),
 		.CPSENSE(1'b1), 
 		.BG20(BG20), 
 		.AS20(AS20), 
@@ -95,7 +99,6 @@ wire [1:0] SIZ = (LDSn | UDSn) ? 'b01 : 'b10;
 		.RW(RWn), 
 		.FC(FC), 
 		.SIZ(SIZ),
-		//.OVR(OVR),	
 		.A({ADR[23:0]}), 
 		.BGACK(BGACKn), 
 		.VPA(VPAn), 
@@ -109,7 +112,8 @@ wire [1:0] SIZ = (LDSn | UDSn) ? 'b01 : 'b10;
 		.BERR(BERRn), 
 		.DSACK({DSACK1,DSACK0}), 
 		.AVEC(AVEC),
-		.IPL(IPLn)
+		.IPL(IPLn),
+		.BUSEN(BUSEN)
 	);
 
 		// Instantiate the Unit Under Test (UUT)
@@ -119,16 +123,19 @@ wire [1:0] SIZ = (LDSn | UDSn) ? 'b01 : 'b10;
 			
                 .INTCYCLE(INTCYCLE),
 		.IDEWAIT (IDEWAIT),
-
+		.FPUOP   (FPUOP),
+		.DTACK   (DTACKn),
+		      
 		.AS20(AS20), 
 		.DS20(DS20), 
 		.RW20(RW20), 
 
 		.STERM (STERM),
 		.SIZ(SIZ), 
-		.A({ADR[23:0]}), 
+		.A(ADR), 
 			
-		.D (DATA[15:8]),
+		.D (DATA_CPU[15:0]),
+		.DD(DATA_LATCH[3]),
 		.IDEINT ( 1'b0 )
 	);
 
@@ -137,6 +144,7 @@ wire [1:0] SIZ = (LDSn | UDSn) ? 'b01 : 'b10;
 		$readmemh("16bit.mif", memory);
 	        $readmemh("ram.mif", cram);
 		$dumpfile("sim.vcd");
+	        //$dumpvars(0, tf530_sim);
 		$dumpvars(0, uut);
 	        $dumpvars(0, uut2);
 		$dumpvars(0, uut3);
@@ -256,8 +264,8 @@ always @(negedge CLK7M) begin
 	   
         end else if (DS_D == 1'b1) begin 
 
-	   //$write("%06x: %04x %b %b DB: %04x\n", ADR[23:0], {(UDS ? cram[{ADR[18:1]}][15:8] : DATA[15:8]) , (LDS ? cram[{ADR[18:1]}][7:0]: DATA[7:0])}, UDS, LDS, DATA[15:0]);
-           cram[{ADR[18:1]}] <=  {(UDS ? cram[{ADR[18:1]}][15:8] : DATA[15:8]) , (LDS ? cram[{ADR[18:1]}][7:0]: DATA[7:0])};
+	   //$write("%06x: %04x %b %b DB: %04x\n", ADR[23:0], {(UDS ? cram[{ADR[18:1]}][15:8] : DATA_OUT[15:8]) , (LDS ? cram[{ADR[18:1]}][7:0]: DATA_OUT[7:0])}, UDS, LDS, DATA[15:0]);
+           cram[{ADR[18:1]}] <=  {(UDS ? cram[{ADR[18:1]}][15:8] : DATA_OUT[15:8]) , (LDS ? cram[{ADR[18:1]}][7:0]: DATA_OUT[7:0])};
                           
         end
     
@@ -279,7 +287,7 @@ always @(negedge CLK7M) begin
 					       #10;
 					   
 						if ((LDSn | RWn) == 1'b0) begin
-							$write("%c", DATA[7:0]);
+							$write("%c", DATA_OUT[7:0]);
 						end
 						
 					end
@@ -330,7 +338,7 @@ always @(negedge CLK7M) begin
       end else if (OVR) begin
 	 
 		 DTACKn <= 0;
-		 DATA_IN <= 'hFFFF;			
+	 DATA_IN <= 'hFFFF;			
 	 
       end 
       
@@ -341,7 +349,10 @@ always @(negedge CLK7M) begin
    
 end
 
-assign DATA = RWn & ~ASn ? DATA_IN : 16'bZ;
+assign DATA_CPU = {DATA_LATCH[15:4],1'bz,DATA_LATCH[2:0]};
+assign DATA_LATCH = BUSEN ? 16'bZ : (RW20 ? DATA_IN : 16'bZ);
+assign DATA_OUT = BUSEN ? 16'bZ : (RW20 ? 16'bZ : {DATA_CPU[15:4],DATA_LATCH[3],DATA_CPU[2:0]}); 
+   
 PULLUP IDEWAIT_pullup (
 .O(IDEWAIT) // Pullup output (connect directly to top-level port)
 );
@@ -412,11 +423,24 @@ generate
    
    for (c = 0; c < 16; c = c + 1) begin: data_pullup
       PULLUP D_pullup (
-	.O(DATA[c]) 
+	.O(DATA_OUT[c]) 
       );
     end
 endgenerate
 
-//assign DATA[7:0] = OVR & RW20 ? 8'bzzzzzzzz : 8'hff;         
+generate
+   
+   for (c = 0; c < 32; c = c + 1) begin: address_pullup
+      PULLUP ADR_pullup (
+	.O(ADR[c]) 
+      );
+    end
+
+endgenerate
+
+
+assign ADR[31:24] = 8'd0;
+   
+
 endmodule
 
