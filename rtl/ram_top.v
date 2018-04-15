@@ -115,7 +115,7 @@ autoconfig AUTOCONFIG(
 
                .RESET  ( RESET         ),
 
-               .AS20   ( AS20_D          ),
+               .AS20   ( AS20          ),
                .DS20   ( DS20          ),
                .RW20   ( RW20          ),
 
@@ -130,8 +130,11 @@ autoconfig AUTOCONFIG(
 
 wire RAMOE_INT;
 wire [3:0] RAMCS_INT;
-reg echo_d3 = 1'b1;
 reg DTACK_D = 1'b1;
+
+reg echo_d3 = 1'b1;
+reg D3_D = 1'b1;
+reg DD_D = 1'b1;   
 
 fastram RAMCONTROL (
 
@@ -155,11 +158,19 @@ fastram RAMCONTROL (
 
 reg CLKB2 = 1'b0;
 reg CLKB4 = 1'b0;
+reg [15:0] data_out;
 
 always @(posedge CLKCPU) begin 
-	
-	CLKB2 <= ~CLKB2;
-	
+   
+   CLKB2 <= ~CLKB2;
+   
+   DD_D <= DD;
+   D3_D <= D[3];
+
+   data_out[15:12] <= spi_access ? (zii_access ? {gayle_dout,3'b000} : zii_dout ) : spi_dout[7:4];
+   data_out[11:8] <= spi_access ? 4'd0 : spi_dout[3:0];
+   data_out[7:0] <=  8'hFF;
+
 end
 
 zxmmc SPIPORT (
@@ -279,20 +290,12 @@ assign CIIN = CIIN_D;
 
 assign INT2 = GAYLE_INT2 ? 1'bz : 1'b0;
 
-wire [15:0] data_out;
-assign data_out[15:12] = spi_access ? (zii_access ? {gayle_dout,3'b000} : zii_dout ) : spi_dout[7:4];
-assign data_out[11:8] = spi_access ? 4'd0 : spi_dout[3:0];
-assign data_out[7:4] =  4'h0;
-assign data_out[3] = DD;
-assign data_out[2:0] = 3'b000;
-
-assign D[15:4] = ~intcycle_dout ? data_out[15:4] : 12'bzzzz_zzzzzzzz;
-assign D[2:0] =  ~intcycle_dout ? data_out[2:0] :  3'bzzz;
-assign D[3] =  echo_d3 ? DD : 1'bz;  
+assign D[15:0] = ~intcycle_dout ? data_out : 16'bzzzzzzzz_zzzzzzzz;
+assign D[3] =  echo_d3 ? DD_D : 1'bz;  
 
 assign RAMA[3:2] = {A[3:2]};   
 
-assign DD = RW20 ? 1'bz : D[3];
+assign DD = RW20 ? 1'bz : D3_D;
 
 assign WRITEPROT = 1'b1;
 assign HOLD = 1'b1;

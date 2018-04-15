@@ -178,7 +178,7 @@ wire [1:0] SIZ = (LDSn | UDSn) ? 'b01 : 'b10;
 	end
 	
 assign HALTn = 1;
-assign CLK = CLK50M;
+assign CLK = CLK25M;
 
 always 	begin
     #10; CLK50M = ~CLK50M;
