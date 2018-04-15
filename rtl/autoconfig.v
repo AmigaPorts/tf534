@@ -42,7 +42,7 @@ localparam SPI_CARD = 0;
 
 localparam CONFIGURING_RAM = 2'b01;
 localparam CONFIGURING_SPI = 2'b00;
-   
+
 reg [1:0] config_out = 'd0;
 reg [1:0] configured = 'd0;
 reg [1:0] shutup = 'd0;
@@ -106,7 +106,7 @@ always @(negedge DS20 or negedge RESET) begin
                 if (config_out == CONFIGURING_SPI) data_out[7:4] <= 4'h7;
                 if (config_out == CONFIGURING_RAM) data_out[7:4] <= 4'hf;
             end
-	    // common autoconfig params
+            // common autoconfig params
             6'h03: data_out[7:4] <= 4'he;
             6'h04: data_out[7:4] <= 4'h7;
             6'h08: data_out[7:4] <= 4'he;

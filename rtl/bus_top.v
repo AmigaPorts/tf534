@@ -63,7 +63,7 @@ module bus_top(
            output 	AS,
            output 	BERR,
 
-           output       SPARE,	
+           output   SPARE,
            input 	IDEWAIT,
            input 	INTCYCLE,
            output 	INT2,
@@ -100,6 +100,7 @@ reg AS20DLY = 1'b1;
 reg AS20DLY2 = 1'b1;
 reg RW20DLY = 1'b1;
 reg FASTCYCLE = 1'b1;
+reg BUSEN_D = 1'b1;
 
 reg CLK7MB2 = 1'b1;
 reg BGACKD1 = 1'b1;
@@ -111,8 +112,6 @@ reg UDS_INT = 1'b1;
 
 wire CPUSPACE = &FC;
 
-   reg BUSEN_D;
-     
 wire FPUOP = CPUSPACE & ({A[19:16]} === {4'b0010});
 wire BKPT = CPUSPACE & ({A[19:16]} === {4'b0000});
 wire IACK = CPUSPACE & ({A[19:16]} === {4'b1111});
@@ -156,32 +155,17 @@ wire FASTCYCLE_INT = AS20DLY2 | ~IDEWAIT | INTCYCLE;
 
 reg S0MASK = 1'b1;
 reg S4MASK = 1'b1;
-reg S5MASK1 = 1'b1;
-reg S5MASK2 = 1'b1;
-reg S6MASK = 1'b1;
 reg CPCS_INT = 1'b1;
 reg AVEC_INT = 1'b1;
 
-always @(negedge CLKCPU or posedge AS20) begin
-
-  if (AS20 == 1'b1) begin
-      S5MASK1 <= 1'b1;
-      S5MASK2 <= 1'b1;
-  end else begin 
-      S5MASK1 <= S4MASK;
-      S5MASK2 <= S5MASK1;
-  end 
-
-end
-
 always @(posedge CLK7M) begin
-   
+
     S0MASK <= AS_INT;
 
 end
-   
+
 always @(posedge CLK7M or posedge AS20) begin
-   
+
     if (AS20 == 1'b1) begin
 
         AS_INT <= 1'b1;
@@ -189,7 +173,6 @@ always @(posedge CLK7M or posedge AS20) begin
         LDS_INT <= 1'b1;
         UDS_INT <= 1'b1;
         S4MASK <= 1'b1;
-        S6MASK <= 1'b1;
 
     end else begin
 
@@ -200,21 +183,20 @@ always @(posedge CLK7M or posedge AS20) begin
         if (RW20 == 1'b1) begin
 
             // reading when reading the signals are asserted in 7Mhz S2
-	    BUSEN_D <= DS20 | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
+            BUSEN_D <= DS20 | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
             UDS_INT <= DS20 | A[0] | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
             LDS_INT <= DS20 | ({A[0], SIZ[1:0]} == 3'b001) | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
 
         end else begin
 
             // when writing the the signals are asserted in 7Mhz S4
-	    BUSEN_D <= DS20 | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
+            BUSEN_D <= DS20 | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
             UDS_INT <= DS20 | AS_INT | A[0] | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
             LDS_INT <= DS20 | AS_INT  | ({A[0], SIZ[1:0]} == 3'b001) | FPUOP | ~GAYLE_IDE | ~INTCYCLE | (~S0MASK & AS_INT);
-				
+
         end
 
         S4MASK <= (AS_INT | DTACK) & DTACK_IDE;
-		  S6MASK <= S4MASK;
 
     end
 
@@ -255,7 +237,7 @@ assign UDS =  HIGHZ ? 1'bz : UDS_INT;
 assign LDS =  HIGHZ ? 1'bz : LDS_INT;
 assign VMA =  HIGHZ ? 1'bz : VMA_INT;
 
-assign DSACK[1] = FPUOP | (S5MASK1 | ~INTCYCLE) & DSACK1_SYNC & FASTCYCLE;
+assign DSACK[1] = FPUOP | (S4MASK | ~INTCYCLE) & DSACK1_SYNC & FASTCYCLE;
 assign DSACK[0] = 1'bz;
 
 assign BG = AS ?  BG20 : 1'bz;

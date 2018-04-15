@@ -20,19 +20,19 @@
 */
 
 module ata (
-        input 	 CLK,
-        input 	 AS,
-        input 	 RW,
-        input [23:0] A,
-        input        WAIT,	 
-             
-        output [1:0] IDECS,
-        output 	 IOR,
-        output 	 IOW,
-        output   DTACK,
-         output 	 ACCESS
-        
-        );
+           input 	 CLK,
+           input 	 AS,
+           input 	 RW,
+           input [23:0] A,
+           input        WAIT,
+
+           output [1:0] IDECS,
+           output 	 IOR,
+           output 	 IOW,
+           output   DTACK,
+           output 	 ACCESS
+
+       );
 
 /* Timing Diagram
                  S0 S1 S2 S3 S4 S5  W  W S6 S7
@@ -52,57 +52,57 @@ DTACK                            \______/
 WAIT                         \_____/
         
 */
-   
-// decode directly from AS and Address Bus. 
+
+// decode directly from AS and Address Bus.
 wire GAYLE_IDE = ({A[23:15]} != {8'hDA,1'b0});
 
 reg ASDLY = 1'b1;
-reg ASDLY2 = 1'b1;   
+reg ASDLY2 = 1'b1;
 reg DTACK_INT = 1'b1;
-   
+
 reg IOR_INT = 1'b1;
 reg IOW_INT = 1'b1;
 
 always @(posedge CLK or posedge AS) begin
 
-   if (AS == 1'b1) begin
+    if (AS == 1'b1) begin
 
-      ASDLY <= 1'b1;
-      ASDLY2 <= 1'b1;
+        ASDLY <= 1'b1;
+        ASDLY2 <= 1'b1;
 
-   end else begin 
+    end else begin
 
-      ASDLY <= AS;
-      ASDLY2 <= ASDLY;
-      
-   end 
-   
-end 
-   
+        ASDLY <= AS;
+        ASDLY2 <= ASDLY;
+
+    end
+
+end
+
 always @(negedge CLK or posedge AS) begin
 
-   if (AS == 1'b1) begin
+    if (AS == 1'b1) begin
 
-      IOR_INT <= 1'b1;
-      IOW_INT <= 1'b1;
+        IOR_INT <= 1'b1;
+        IOW_INT <= 1'b1;
         DTACK_INT <= 1'b1;
 
-   end else begin 
-      
-      IOR_INT <= ~RW | ASDLY | GAYLE_IDE;
-      IOW_INT <=  RW | ASDLY2 | GAYLE_IDE;
-      DTACK_INT <=  ASDLY2 | GAYLE_IDE;
-     
-   end 
-      
+    end else begin
+
+        IOR_INT <= ~RW | ASDLY | GAYLE_IDE;
+        IOW_INT <=  RW | ASDLY2 | GAYLE_IDE;
+        DTACK_INT <=  ASDLY2 | GAYLE_IDE;
+
+    end
+
 end
-   
+
 assign IOR = IOR_INT;
 assign IOW = IOW_INT ;
 assign DTACK = DTACK_INT;
-      
-assign IDECS = A[12] ? {GAYLE_IDE, 1'b1} : {1'b1, GAYLE_IDE}; 
+
+assign IDECS = A[12] ? {GAYLE_IDE, 1'b1} : {1'b1, GAYLE_IDE};
 assign ACCESS = GAYLE_IDE;
-    
-    
+
+
 endmodule
